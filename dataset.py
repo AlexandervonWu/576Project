@@ -15,7 +15,7 @@ class BasicDataset(Dataset):
         self.scale = scale
         self.mask_suffix = mask_suffix
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
-        self.ids = ['man_track'+ file.strip('t') for file in listdir(imgs_dir)]
+        self.ids = ['man_seg'+ file.strip('t') for file in listdir(imgs_dir)]
         self.idss= [file for file in listdir((imgs_dir))]
         logging.info(f'Creating dataset with {len(self.ids)} examples')
 
@@ -45,7 +45,7 @@ class BasicDataset(Dataset):
         idx = self.ids[i]
         mask_file = glob(self.masks_dir + idx)
         img_file = glob(self.imgs_dir + self.idss[i])
-        print(self.masks_dir + idx)
+        # print(self.masks_dir + idx)
 
         assert len(mask_file) == 1, \
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'

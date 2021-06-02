@@ -17,17 +17,17 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset import BasicDataset
 # from utils.dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
-
-dir_img = './data/TRAIN-PhC-C2DH-U373/01/'
-dir_mask = './data/TRAIN-PhC-C2DH-U373/01_GT/TRA/'
+from loss import bceLoss
+dir_img = './data/PhC-C2DL-PSC/01/'
+dir_mask = './data/PhC-C2DL-PSC/01_ST/SEG/'
 # dir_checkpoint = 'checkpoints/'
 
 
 def train_net(net,
               device,
-              epochs=100,
-              batch_size=5,
-              lr=0.000001,
+              epochs=5,
+              batch_size=2,
+              lr=0.00001,
               val_percent=0.1,
               save_cp=True,
               img_scale=0.5):
@@ -52,13 +52,16 @@ def train_net(net,
         Device:          {device.type}
         Images scaling:  {img_scale}
     ''')
-    # optimizer = optim.sgd
+    # optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-8)
+    # optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
     optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min' if net.n_classes > 1 else 'max', patience=2)
     if net.n_classes > 1:
         criterion = nn.CrossEntropyLoss()
     else:
+        # criterion =
         criterion = nn.BCEWithLogitsLoss()
+    # print(net.n_classes)
     for epoch in range(epochs):
         net.train()
 
@@ -77,11 +80,12 @@ def train_net(net,
                 true_masks = true_masks.to(device=device, dtype=mask_type)
 
                 masks_pred = net(imgs)
-                loss = criterion(masks_pred, true_masks)
+                loss = bceLoss.BCE_loss(masks_pred,true_masks)
+                # loss = criterion(masks_pred, true_masks)
                 epoch_loss += loss.item()
                 writer.add_scalar('Loss/train', loss.item(), global_step)
 
-                pbar.set_postfix(**{'loss (batch)': loss.item()})
+                pbar.set_postfix(**{'loss (bce)': loss.item()})
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -130,7 +134,7 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=5,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.00001,
                         help='Learning rate', dest='lr')
@@ -156,7 +160,7 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    net = UNet(in_channels=3, n_classes=1)
+    net = UNet(in_channels=1, n_classes=1)
     logging.info(f'Network:\n'
                  f'\t{net.in_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n')
